@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>小小探險家：森林小屋</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#1e1712;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;color:white;overflow:hidden}
+#game{height:100dvh;max-width:560px;margin:auto;position:relative;background:#000;overflow:hidden}
+.scene{position:absolute;inset:0;background:url('room.png') center/cover no-repeat;transition:transform .35s ease}
+.top{position:absolute;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;gap:10px;align-items:center;z-index:20}
+.pill{background:rgba(69,38,20,.91);border:3px solid #a96d39;border-radius:22px;padding:10px 15px;font-size:20px;font-weight:900;box-shadow:0 5px 12px #0006}
+#count{flex:1}.bag{font-size:24px}
+.msg{position:absolute;left:14px;right:14px;bottom:max(18px,env(safe-area-inset-bottom));z-index:20;background:rgba(38,24,15,.9);border:2px solid #c78a4d;border-radius:22px;padding:13px 16px;text-align:center;font-size:18px;font-weight:800;box-shadow:0 8px 20px #0007}
+.hot{position:absolute;border:0;background:transparent;z-index:8;border-radius:18px}
+.hot:active{background:#ffd35a33}.hint .hot{outline:3px solid #ffe27a;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 22px #ffe27a}}
+.pop{position:absolute;z-index:30;font-size:46px;pointer-events:none;animation:pop .8s forwards}
+@keyframes pop{0%{transform:scale(.2);opacity:0}40%{transform:scale(1.35);opacity:1}100%{transform:translateY(-70px) scale(.9);opacity:0}}
+.panel{position:absolute;z-index:15;background:linear-gradient(#9a6035,#5c351d);border:4px solid #d69b5e;border-radius:20px;box-shadow:0 12px 30px #0009;padding:16px;display:none;text-align:center}
+.panel.show{display:block;animation:open .25s ease}@keyframes open{from{transform:scale(.75);opacity:0}}
+.fruits{font-size:40px;line-height:1.5}.big{font-size:55px}
+#finish{position:absolute;inset:0;z-index:50;background:#000a;display:none;place-items:center;padding:30px;text-align:center}
+#finish.show{display:grid}.card{background:#fff3df;color:#55331e;border-radius:30px;padding:28px;width:100%;font-size:22px}
+.card b{font-size:32px}.card button{margin-top:18px;border:0;border-radius:18px;padding:14px 22px;background:#7eaf56;color:white;font-size:20px;font-weight:900}
+</style></head>
+<body><main id="game">
+<div class="scene" id="scene"></div>
+<div class="top"><div class="pill" id="count">🍎 0 / 15</div><div class="pill bag" id="bag">🎒</div></div>
+<div class="msg" id="msg">🔎 找到 15 顆蘋果。房間裡有些東西可以打開！</div>
+
+<!-- hotspots, percentages based on portrait artwork -->
+<button class="hot" data-id="fire" style="left:5%;top:51%;width:24%;height:18%"></button>
+<button class="hot" data-id="drawers" style="left:35%;top:43%;width:22%;height:23%"></button>
+<button class="hot" data-id="chest" style="left:54%;top:50%;width:25%;height:16%"></button>
+<button class="hot" data-id="cabinet" style="left:82%;top:24%;width:18%;height:35%"></button>
+<button class="hot" data-id="rug" style="left:31%;top:63%;width:45%;height:17%"></button>
+<button class="hot" data-id="crate" style="left:68%;top:72%;width:30%;height:20%"></button>
+<button class="hot" data-id="window" style="left:34%;top:17%;width:25%;height:26%"></button>
+<button class="hot" data-id="shelf" style="left:4%;top:26%;width:30%;height:18%"></button>
+
+<div id="panel" class="panel"></div>
+<div id="finish"><div class="card"><div class="big">🐰✨🍎</div><b>全部找到了！</b><p>森林小屋的秘密被你發現了。</p><button onclick="location.reload()">再玩一次</button></div></div>
+</main>
+<script>
+const target=15; let found=0,key=false; const opened=new Set();
+const msg=document.querySelector('#msg'), count=document.querySelector('#count'), bag=document.querySelector('#bag'), panel=document.querySelector('#panel');
+const loot={
+ fire:{title:'壁爐',fruit:2,text:'木柴後面藏著蘋果！'},
+ drawers:{title:'抽屜',fruit:3,key:true,text:'抽屜一層一層拉開…找到鑰匙！'},
+ chest:{title:'上鎖寶箱',fruit:4,locked:true,text:'寶箱裡好多蘋果！'},
+ cabinet:{title:'綠色櫃子',fruit:2,text:'推開櫃門，裡面有水果。'},
+ rug:{title:'地毯',fruit:1,text:'掀起地毯的一角…有東西！'},
+ crate:{title:'木箱',fruit:1,text:'把木板掀開看看。'},
+ window:{title:'窗台',fruit:1,text:'葉子後面露出紅紅的一角。'},
+ shelf:{title:'壁爐架',fruit:1,text:'書本和玩偶旁邊藏著一顆。'}
+};
+function pop(x,y,n){for(let i=0;i<n;i++){let e=document.createElement('div');e.className='pop';e.textContent='🍎';e.style.left=(x+i*8)+'px';e.style.top=(y+i*4)+'px';document.querySelector('#game').appendChild(e);setTimeout(()=>e.remove(),850)}}
+function showPanel(o,id,rect){
+ panel.innerHTML=`<div style="font-size:22px;font-weight:900">${o.title}</div><div class="fruits">${'🍎'.repeat(Math.min(o.fruit,4))}</div><div style="font-size:17px">${o.text}</div>`;
+ panel.style.left='12%';panel.style.right='12%';panel.style.top='35%';panel.classList.add('show');
+ setTimeout(()=>panel.classList.remove('show'),950);
+ if(o.key){key=true;bag.textContent='🎒 🔑'}
+ found+=o.fruit;count.textContent=`🍎 ${found} / ${target}`;
+ pop(rect.left+rect.width/2-20,rect.top+20,o.fruit);
+ if(found>=target)setTimeout(()=>document.querySelector('#finish').classList.add('show'),700);
+}
+document.querySelectorAll('.hot').forEach(b=>b.onclick=()=>{
+ const id=b.dataset.id,o=loot[id],r=b.getBoundingClientRect();
+ if(opened.has(id)){msg.textContent='這裡已經找過了 👀';return}
+ if(o.locked&&!key){msg.textContent='🔒 寶箱鎖住了。先找一把鑰匙！';b.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'none'}],{duration:260});return}
+ opened.add(id); showPanel(o,id,r);
+ msg.textContent=o.key?'🗝️ 找到鑰匙！現在可以找找哪裡上鎖。':`✨ ${o.title}找到 ${o.fruit} 顆蘋果！`;
+});
+let idle; function resetHint(){clearTimeout(idle);document.querySelector('#game').classList.remove('hint');idle=setTimeout(()=>{document.querySelector('#game').classList.add('hint');msg.textContent='✨ 有些地方好像在閃閃發亮…'},12000)}
+['pointerdown','touchstart'].forEach(e=>document.addEventListener(e,resetHint,{passive:true}));resetHint();
+</script></body></html>
